@@ -6,13 +6,13 @@ namespace TelegramBotMenu
 {
     internal class ToDoService : IToDoService
     {
-        private List<ToDoItem> toDoItems = new List<ToDoItem>();
-        private int taskCountLimit = 5;
-        private int taskLengthLimit = 20;
+        private readonly List<ToDoItem> toDoItems = new List<ToDoItem>();
+        private readonly int taskCountLimit = 5;
+        private readonly int taskLengthLimit = 20;
 
         public ToDoItem Add(ToDoUser user, string name)
         {
-            List<ToDoItem> userTasks = toDoItems.Where(x => x.User == user).ToList();
+            IReadOnlyList<ToDoItem> userTasks = GetActiveByUserId(user.UserId);
 
             if (userTasks.Count >= taskCountLimit)
                 throw new TaskCountLimitException(taskCountLimit);

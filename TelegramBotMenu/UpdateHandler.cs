@@ -24,70 +24,160 @@ namespace TelegramBotMenu
                 }
             }
 
-            if (command == "/start")
+            switch (command)
             {
-                ProcessCommandStart(update);
-                botClient.SendMessage(update.Message.Chat, $"Привет, {user.TelegramUserName}");
+                case "/start":
+                    {
+                        ProcessCommandStart(update);
+                        botClient.SendMessage(update.Message.Chat, $"Привет, {user.TelegramUserName}");
+                        break;
+                    }
+                case "/help":
+                    {
+                        ProcessCommandHelp(botClient, update.Message.Chat);
+                        break;
+                    }
+                case "/info":
+                    {
+                        ProcessCommandInfo(botClient, update.Message.Chat);
+                        break;
+                    }
+                case "/addtask":
+                    {
+                        if (userService.GetUser(update.Message.From.Id) == null) return;
+
+                        try
+                        {
+                            toDoService.Add(user, content);
+                        }
+                        catch (TaskCountLimitException ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                        }
+                        catch (TaskLengthLimitException ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                        }
+                        catch (DuplicateTaskException ex)
+                        {
+                            Console.WriteLine(ex.Message);
+                        }
+                        catch
+                        {
+                            throw;
+                        }
+                        break;
+                    }
+                case "/showtasks":
+                    {
+                        if (userService.GetUser(update.Message.From.Id) == null) return;
+
+                        var userActiveTasks = toDoService.GetActiveByUserId(user.UserId);
+                        PrintTasks(botClient, update.Message.Chat, userActiveTasks);
+                        break;
+                    }
+                case "/removetask":
+                    {
+                        if (userService.GetUser(update.Message.From.Id) == null) return;
+
+                        if (Guid.TryParse(content, out Guid taskId))
+                            toDoService.Delete(taskId);
+                        else
+                            botClient.SendMessage(update.Message.Chat, "Введен неверный Id задачи");
+
+                        break;
+                    }
+                case "/completetask":
+                    {
+                        if (userService.GetUser(update.Message.From.Id) == null) return;
+
+                        if (Guid.TryParse(content, out Guid taskId))
+                            toDoService.MarkCompleted(taskId);
+                        else
+                            botClient.SendMessage(update.Message.Chat, "Введен неверный Id задачи");
+
+                        break;
+                    }
+                case "/showalltasks":
+                    {
+                        if (userService.GetUser(update.Message.From.Id) == null) return;
+
+                        var userTasks = toDoService.GetAllByUserId(user.UserId);
+                        PrintTasks(botClient, update.Message.Chat, userTasks);
+
+                        break;
+                    }
+                default:
+                    {
+                        botClient.SendMessage(update.Message.Chat, "Введена неизвестная команда");
+                        break;
+                    }
             }
-            else if (command == "/help")
-            {
-                ProcessCommandHelp(botClient, update.Message.Chat);
-            }
-            else if (command == "/info")
-            {
-                ProcessCommandInfo(botClient, update.Message.Chat);
-            }
-            else if (command == "/addtask" && userService.GetUser(update.Message.From.Id) != null)
-            {
-                try
-                {
-                    toDoService.Add(user, content);
-                }
-                catch (TaskCountLimitException ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-                catch (TaskLengthLimitException ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-                catch (DuplicateTaskException ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-                catch
-                {
-                    throw;
-                }
-            }
-            else if (command == "/showtasks" && userService.GetUser(update.Message.From.Id) != null)
-            {
-                var userActiveTasks = toDoService.GetActiveByUserId(user.UserId);
-                PrintActiveTasks(botClient, update.Message.Chat, userActiveTasks);
-            }
-            else if (command == "/removetask" && userService.GetUser(update.Message.From.Id) != null)
-            {
-                if (Guid.TryParse(content, out Guid taskId))
-                    toDoService.Delete(taskId);
-                else
-                    botClient.SendMessage(update.Message.Chat, "Введен неверный Id задачи");
-            }
-            else if (command == "/completetask" && userService.GetUser(update.Message.From.Id) != null)
-            {
-                if (Guid.TryParse(content, out Guid taskId))
-                    toDoService.MarkCompleted(taskId);
-                else
-                    botClient.SendMessage(update.Message.Chat, "Введен неверный Id задачи");
-            }
-            else if (command == "/showalltasks" && userService.GetUser(update.Message.From.Id) != null)
-            {
-                var userTasks = toDoService.GetAllByUserId(user.UserId);
-                PrintAllTasks(botClient, update.Message.Chat, userTasks);
-            }
-            else
-            {
-                botClient.SendMessage(update.Message.Chat, "Введена неизвестная команда");
-            }
+
+            //if (command == "/start")
+            //{
+            //    ProcessCommandStart(update);
+            //    botClient.SendMessage(update.Message.Chat, $"Привет, {user.TelegramUserName}");
+            //}
+            //else if (command == "/help")
+            //{
+            //    ProcessCommandHelp(botClient, update.Message.Chat);
+            //}
+            //else if (command == "/info")
+            //{
+            //    ProcessCommandInfo(botClient, update.Message.Chat);
+            //}
+            //else if (command == "/addtask" && userService.GetUser(update.Message.From.Id) != null)
+            //{
+            //    try
+            //    {
+            //        toDoService.Add(user, content);
+            //    }
+            //    catch (TaskCountLimitException ex)
+            //    {
+            //        Console.WriteLine(ex.Message);
+            //    }
+            //    catch (TaskLengthLimitException ex)
+            //    {
+            //        Console.WriteLine(ex.Message);
+            //    }
+            //    catch (DuplicateTaskException ex)
+            //    {
+            //        Console.WriteLine(ex.Message);
+            //    }
+            //    catch
+            //    {
+            //        throw;
+            //    }
+            //}
+            //else if (command == "/showtasks" && userService.GetUser(update.Message.From.Id) != null)
+            //{
+            //    var userActiveTasks = toDoService.GetActiveByUserId(user.UserId);
+            //    PrintActiveTasks(botClient, update.Message.Chat, userActiveTasks);
+            //}
+            //else if (command == "/removetask" && userService.GetUser(update.Message.From.Id) != null)
+            //{
+            //    if (Guid.TryParse(content, out Guid taskId))
+            //        toDoService.Delete(taskId);
+            //    else
+            //        botClient.SendMessage(update.Message.Chat, "Введен неверный Id задачи");
+            //}
+            //else if (command == "/completetask" && userService.GetUser(update.Message.From.Id) != null)
+            //{
+            //    if (Guid.TryParse(content, out Guid taskId))
+            //        toDoService.MarkCompleted(taskId);
+            //    else
+            //        botClient.SendMessage(update.Message.Chat, "Введен неверный Id задачи");
+            //}
+            //else if (command == "/showalltasks" && userService.GetUser(update.Message.From.Id) != null)
+            //{
+            //    var userTasks = toDoService.GetAllByUserId(user.UserId);
+            //    PrintAllTasks(botClient, update.Message.Chat, userTasks);
+            //}
+            //else
+            //{
+            //    botClient.SendMessage(update.Message.Chat, "Введена неизвестная команда");
+            //}
         }
 
         public UpdateHandler(IUserService userService, IToDoService toDoService)
@@ -96,7 +186,7 @@ namespace TelegramBotMenu
             this.toDoService = toDoService;
         }
 
-        public void PrintAllTasks(ITelegramBotClient botClient, Chat chat, IReadOnlyList<ToDoItem> tasksList)
+        public void PrintTasks(ITelegramBotClient botClient, Chat chat, IReadOnlyList<ToDoItem> tasksList)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -104,19 +194,6 @@ namespace TelegramBotMenu
             {
                 var task = tasksList[i];
                 sb.Append($"{i + 1}. {(task.State)} {task.Name} - {task.CreatedAt} - {task.Id}\n");
-            }
-
-            botClient.SendMessage(chat, sb.ToString());
-        }
-
-        public void PrintActiveTasks(ITelegramBotClient botClient, Chat chat, IReadOnlyList<ToDoItem> tasksList)
-        {
-            StringBuilder sb = new StringBuilder();
-
-            for (int i = 0; i < tasksList.Count; i++)
-            {
-                var task = tasksList[i];
-                sb.Append($"{i + 1}. {task.Name} - {task.CreatedAt} - {task.Id}\n");
             }
 
             botClient.SendMessage(chat, sb.ToString());
