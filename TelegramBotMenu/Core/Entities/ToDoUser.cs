@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TelegramBotMenu
+namespace TelegramBot.Core.Entities
 {
     internal class ToDoUser
     {
@@ -9,7 +9,7 @@ namespace TelegramBotMenu
         public string? TelegramUserName { get; }
         public DateTime RegisteredAt { get; }
 
-        public ToDoUser(long telegramUserId, string telegramUserName) 
+        public ToDoUser(long telegramUserId, string telegramUserName)
         {
             TelegramUserId = telegramUserId;
             TelegramUserName = telegramUserName;

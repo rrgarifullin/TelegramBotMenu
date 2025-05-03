@@ -1,6 +1,7 @@
 ﻿using System;
+using TelegramBot.Core.Entities;
 
-namespace TelegramBotMenu
+namespace TelegramBot.Core.Services.Interface
 {
     internal interface IUserService
     {

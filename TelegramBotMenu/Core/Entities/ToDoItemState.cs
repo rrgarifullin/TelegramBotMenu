@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TelegramBotMenu
+namespace TelegramBot.Core.Entities
 {
     public enum ToDoItemState
     {

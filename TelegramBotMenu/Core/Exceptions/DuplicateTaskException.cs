@@ -1,10 +1,10 @@
 ﻿using System;
 
-namespace TelegramBotMenu
+namespace TelegramBot.Core.Exceptions
 {
     internal class DuplicateTaskException : Exception
     {
-        public DuplicateTaskException(string task) 
+        public DuplicateTaskException(string task)
             : base($"Задача {task} уже существует") { }
     }
 }
