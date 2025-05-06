@@ -1,14 +1,21 @@
-﻿using Otus.ToDoList.ConsoleBot.Types;
-using System;
-using System.Linq;
+﻿using System;
+using TelegramBot.Core.DataAccess;
+using TelegramBot.Core.Entities;
+using TelegramBot.Core.Exceptions;
+using TelegramBot.Core.Services.Interface;
 
-namespace TelegramBotMenu
+namespace TelegramBot.Core.Services.Service
 {
     internal class ToDoService : IToDoService
     {
-        private readonly List<ToDoItem> toDoItems = new List<ToDoItem>();
         private readonly int taskCountLimit = 5;
         private readonly int taskLengthLimit = 20;
+        IToDoRepository _repository;
+
+        public ToDoService(IToDoRepository toDoRepository)
+        {
+            _repository = toDoRepository;
+        }
 
         public ToDoItem Add(ToDoUser user, string name)
         {
@@ -27,41 +34,44 @@ namespace TelegramBotMenu
             }
 
             ToDoItem toDoItem = new ToDoItem(user, name);
-            toDoItems.Add(toDoItem);
+            _repository.Add(toDoItem);
 
             return toDoItem;
         }
 
         public void Delete(Guid id)
         {
-            List<ToDoItem> task = toDoItems.Where(x => x.Id == id).ToList();
+            var task = _repository.Get(id);
 
-            if (task.Count > 0)
-                toDoItems.RemoveAll(x => x.Id == id);
+            if (task != null)
+                _repository.Delete(id);
+        }
+
+        public IReadOnlyList<ToDoItem> Find(ToDoUser user, string namePrefix)
+        {
+            var filteredTasks = _repository.Find(user.UserId, x => x.Name.StartsWith(namePrefix));
+            return filteredTasks.ToList();
         }
 
         public IReadOnlyList<ToDoItem> GetActiveByUserId(Guid userId)
         {
-            List<ToDoItem> userActiveTasks = toDoItems
-                                                .Where(x => x.User.UserId == userId && x.State == ToDoItemState.Active)
-                                                .ToList();
-            return userActiveTasks;
+            var activeTasks = _repository.GetActiveByUserId(userId);
+            return activeTasks;
         }
 
         public IReadOnlyList<ToDoItem> GetAllByUserId(Guid userId)
         {
-            List<ToDoItem> userTasks = toDoItems.Where(x => x.User.UserId == userId).ToList();
-            return userTasks;
+            var tasks = _repository.GetAllByUserId(userId);
+            return tasks;
         }
 
         public void MarkCompleted(Guid id)
         {
-            ToDoItem? item = toDoItems.FirstOrDefault(x => x.Id == id);
+            ToDoItem? item = _repository.Get(id);
 
             if (item != null && item.State != ToDoItemState.Completed)
             {
-                item.State = ToDoItemState.Completed;
-                item.StateChangedAt = DateTime.Now;
+                _repository.Update(item);
             }
         }
     }

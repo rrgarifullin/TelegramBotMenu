@@ -1,6 +1,7 @@
 ﻿using System;
+using TelegramBot.Core.Entities;
 
-namespace TelegramBotMenu
+namespace TelegramBot.Core.Services.Interface
 {
     internal interface IToDoService
     {
@@ -9,5 +10,6 @@ namespace TelegramBotMenu
         ToDoItem Add(ToDoUser user, string name);
         void MarkCompleted(Guid id);
         void Delete(Guid id);
+        IReadOnlyList<ToDoItem> Find(ToDoUser user, string namePrefix);
     }
 }

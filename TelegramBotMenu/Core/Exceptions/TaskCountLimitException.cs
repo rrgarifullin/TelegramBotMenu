@@ -1,10 +1,10 @@
 ﻿using System;
 
-namespace TelegramBotMenu
+namespace TelegramBot.Core.Exceptions
 {
     internal class TaskCountLimitException : Exception
     {
-        public TaskCountLimitException(int taskCountLimit) 
+        public TaskCountLimitException(int taskCountLimit)
             : base($"Превышено максимальное количество задач, равное {taskCountLimit}") { }
     }
 }

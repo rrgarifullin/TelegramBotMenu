@@ -1,7 +1,11 @@
 ﻿using Otus.ToDoList.ConsoleBot;
-using System.Data;
+using TelegramBot.Bot;
+using TelegramBot.Core.DataAccess;
+using TelegramBot.Core.Services.Interface;
+using TelegramBot.Core.Services.Service;
+using TelegramBot.Infrastructure.DataAccess;
 
-namespace TelegramBotMenu
+namespace TelegramBot
 {
     internal class Program
     {
@@ -9,9 +13,15 @@ namespace TelegramBotMenu
         {
             try
             {
-                IUserService userService = new UserService();
-                IToDoService toDoService = new ToDoService(); 
-                var handler = new UpdateHandler(userService, toDoService);
+                IUserRepository userRepository = new InMemoryUserRepository();
+                IUserService userService = new UserService(userRepository);
+
+                IToDoRepository toDoRepository = new InMemoryToDoRepository();
+                IToDoService toDoService = new ToDoService(toDoRepository);
+
+                IToDoReportService reportService = new ToDoReportService(toDoRepository);
+
+                var handler = new UpdateHandler(userService, toDoService, reportService);
                 var botClient = new ConsoleBotClient();
                 botClient.StartReceiving(handler);
             }
