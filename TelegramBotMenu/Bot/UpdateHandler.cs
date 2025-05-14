@@ -8,18 +8,28 @@ using TelegramBot.Core.Services.Interface;
 
 namespace TelegramBot.Bot
 {
+    public delegate void MessageEventHandler(string message);
+
     internal class UpdateHandler : IUpdateHandler
     {
         private readonly IUserService _userService;
         private readonly IToDoService _toDoService;
         private readonly IToDoReportService _reportService;
 
-        public void HandleUpdateAsync(ITelegramBotClient botClient, Update update)
-        {
-            var chat = update.Message.Chat;
+        public event MessageEventHandler? OnHandleUpdateStarted;
+        public event MessageEventHandler? OnHandleUpdateCompleted;
 
+        public async Task HandleUpdateAsync(ITelegramBotClient botClient, Update update, CancellationToken ct)
+        {
+            if (ct.IsCancellationRequested)
+                ct.ThrowIfCancellationRequested();
+
+            var chat = update.Message.Chat;
             string command = update.Message.Text;
             string content = "";
+
+            OnHandleUpdateStarted?.Invoke(command);
+
             if (command.StartsWith("/addtask") || command.StartsWith("/removetask")
                 || command.StartsWith("/completetask") || command.StartsWith("/find"))
             {
@@ -36,17 +46,17 @@ namespace TelegramBot.Bot
                 case "/start":
                     {
                         var user = ProcessCommandStart(update);
-                        botClient.SendMessage(chat, $"Привет, {user.TelegramUserName}");
+                        await botClient.SendMessage(chat, $"Привет, {user.TelegramUserName}", ct);
                         break;
                     }
                 case "/help":
                     {
-                        ProcessCommandHelp(botClient, chat);
+                        await ProcessCommandHelp(botClient, chat, ct);
                         break;
                     }
                 case "/info":
                     {
-                        ProcessCommandInfo(botClient, chat);
+                        await ProcessCommandInfo(botClient, chat, ct);
                         break;
                     }
                 case "/addtask":
@@ -54,7 +64,7 @@ namespace TelegramBot.Bot
                         var user = _userService.GetUser(update.Message.From.Id);
                         if (user == null)
                         {
-                            botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start");
+                            await botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start", ct);
                             return;
                         }
 
@@ -64,15 +74,15 @@ namespace TelegramBot.Bot
                         }
                         catch (TaskCountLimitException ex)
                         {
-                            Console.WriteLine(ex.Message);
+                            await HandleErrorAsync(botClient, ex, ct);
                         }
                         catch (TaskLengthLimitException ex)
                         {
-                            Console.WriteLine(ex.Message);
+                            await HandleErrorAsync(botClient, ex, ct);
                         }
                         catch (DuplicateTaskException ex)
                         {
-                            Console.WriteLine(ex.Message);
+                            await HandleErrorAsync(botClient, ex, ct);
                         }
                         catch
                         {
@@ -85,12 +95,12 @@ namespace TelegramBot.Bot
                         var user = _userService.GetUser(update.Message.From.Id);
                         if (user == null)
                         {
-                            botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start");
+                            await botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start", ct);
                             return;
                         }
 
                         var userActiveTasks = _toDoService.GetActiveByUserId(user.UserId);
-                        PrintTasks(botClient, chat, userActiveTasks);
+                        await PrintTasks(botClient, chat, userActiveTasks, ct);
                         break;
                     }
                 case "/removetask":
@@ -98,14 +108,14 @@ namespace TelegramBot.Bot
                         var user = _userService.GetUser(update.Message.From.Id);
                         if (user == null)
                         {
-                            botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start");
+                            await botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start", ct);
                             return;
                         }
 
                         if (Guid.TryParse(content, out Guid taskId))
                             _toDoService.Delete(taskId);
                         else
-                            botClient.SendMessage(chat, "Введен неверный Id задачи");
+                            await botClient.SendMessage(chat, "Введен неверный Id задачи", ct);
 
                         break;
                     }
@@ -114,14 +124,14 @@ namespace TelegramBot.Bot
                         var user = _userService.GetUser(update.Message.From.Id);
                         if (user == null)
                         {
-                            botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start");
+                            await botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start", ct);
                             return;
                         }
 
                         if (Guid.TryParse(content, out Guid taskId))
                             _toDoService.MarkCompleted(taskId);
                         else
-                            botClient.SendMessage(chat, "Введен неверный Id задачи");
+                            await botClient.SendMessage(chat, "Введен неверный Id задачи", ct);
 
                         break;
                     }
@@ -130,12 +140,12 @@ namespace TelegramBot.Bot
                         var user = _userService.GetUser(update.Message.From.Id);
                         if (user == null)
                         {
-                            botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start");
+                            await botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start", ct);
                             return;
                         }
 
                         var userTasks = _toDoService.GetAllByUserId(user.UserId);
-                        PrintTasks(botClient, chat, userTasks);
+                        await PrintTasks(botClient, chat, userTasks, ct);
 
                         break;
                     }
@@ -144,13 +154,13 @@ namespace TelegramBot.Bot
                         var user = _userService.GetUser(update.Message.From.Id);
                         if (user == null)
                         {
-                            botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start");
+                            await botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start", ct);
                             return;
                         }
 
                         (int total, int completed, int active, DateTime generatedAt) = _reportService.GetUserStats(user.UserId);
                         var report = $"Статистика по задачам на {generatedAt}. Всего: {total}; Завершенных: {completed}; Активных: {active};";
-                        botClient.SendMessage(chat, report);
+                        await botClient.SendMessage(chat, report, ct);
                         break;
                     }
                 case "/find":
@@ -158,25 +168,27 @@ namespace TelegramBot.Bot
                         var user = _userService.GetUser(update.Message.From.Id);
                         if (user == null)
                         {
-                            botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start");
+                            await botClient.SendMessage(chat, "Пользователь не зарегистрирован, необходимо вызвать команду /start", ct);
                             return;
                         }
 
                         var filteredTasks = _toDoService.Find(user, content);
 
                         if (filteredTasks.Count == 0)
-                            botClient.SendMessage(chat, "Задачи не найдены");
+                            await botClient.SendMessage(chat, "Задачи не найдены", ct);
                         else
-                            PrintTasks(botClient, chat, filteredTasks);
+                            await PrintTasks(botClient, chat, filteredTasks, ct);
 
                         break;
                     }
                 default:
                     {
-                        botClient.SendMessage(chat, "Введена неизвестная команда");
+                        await botClient.SendMessage(chat, "Введена неизвестная команда", ct);
                         break;
                     }
             }
+
+            OnHandleUpdateCompleted?.Invoke(update.Message.Text);
         }
 
         public UpdateHandler(IUserService userService, IToDoService toDoService, IToDoReportService toDoReportService)
@@ -186,7 +198,7 @@ namespace TelegramBot.Bot
             _reportService = toDoReportService;
         }
 
-        public void PrintTasks(ITelegramBotClient botClient, Chat chat, IReadOnlyList<ToDoItem> tasksList)
+        private async Task PrintTasks(ITelegramBotClient botClient, Chat chat, IReadOnlyList<ToDoItem> tasksList, CancellationToken cancellationToken)
         {
             StringBuilder sb = new StringBuilder();
 
@@ -196,7 +208,7 @@ namespace TelegramBot.Bot
                 sb.Append($"{i + 1}. ({task.State}) {task.Name} - {task.CreatedAt} - {task.Id}\n");
             }
 
-            botClient.SendMessage(chat, sb.ToString());
+            await botClient.SendMessage(chat, sb.ToString(), cancellationToken);
         }
 
         private ToDoUser ProcessCommandStart(Update update)
@@ -207,7 +219,7 @@ namespace TelegramBot.Bot
             return user;
         }
 
-        private void ProcessCommandHelp(ITelegramBotClient botClient, Chat chat)
+        private async Task ProcessCommandHelp(ITelegramBotClient botClient, Chat chat, CancellationToken cancellationToken)
         {
             string helpDescription = @"Описание команд:
                                        1. /start - начать общение с ботом
@@ -219,13 +231,21 @@ namespace TelegramBot.Bot
                                        7. /removetask - удалить задачу из списка дел
                                        8. /report - вывести статистику по задачам
                                        9. /find - найти задачу по началу наименования";
-            botClient.SendMessage(chat, helpDescription);
+            await botClient.SendMessage(chat, helpDescription, cancellationToken);
         }
 
-        private void ProcessCommandInfo(ITelegramBotClient botClient, Chat chat)
+        private async Task ProcessCommandInfo(ITelegramBotClient botClient, Chat chat, CancellationToken cancellationToken)
         {
             string text = "Версия программы - v1.4, дата создания - 03.05.2025";
-            botClient.SendMessage(chat, text);
+            await botClient.SendMessage(chat, text, cancellationToken);
+        }
+
+        public async Task HandleErrorAsync(ITelegramBotClient botClient, Exception exception, CancellationToken ct)
+        {
+            if (ct.IsCancellationRequested)
+                ct.ThrowIfCancellationRequested();
+
+            await Task.Run(() => Console.WriteLine(exception.Message));
         }
     }
 }
